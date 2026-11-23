@@ -112,6 +112,16 @@ uv run python -m src.eval.run checkpoints/gru-<timestamp>/last.pt --map duckieto
 The dataset is also on the Hub as [`pamasan/duckad-data`](https://huggingface.co/datasets/pamasan/duckad-data)
 if you only want to browse it.
 
+To skip training as well, download pretrained weights from the
+[DuckAD Weights](https://github.com/Raining-Cloud/duckad/releases/tag/v1) release. It contains
+the five [ablation](#ablation-study) checkpoints; `base.pt` is the one to drive with:
+
+```bash
+curl -L --create-dirs -o checkpoints/base.pt \
+    https://github.com/Raining-Cloud/duckad/releases/download/v1/base.pt
+uv run python -m src.eval.run checkpoints/base.pt --map duckietown_02 --visualize
+```
+
 ## Pipeline
 
 The full loop, in order. Steps 1–2 are only needed if you are collecting your own data.
