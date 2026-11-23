@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="controller_node" type="duckiebot_controller_node.py" name="controller_node" output="screen" />
+</launch>

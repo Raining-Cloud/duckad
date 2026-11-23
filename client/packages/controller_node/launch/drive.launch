@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find model_node)/launch/model_node.launch"/>
+    <include file="$(find controller_node)/launch/controller_node.launch"/>
+    <include file="$(find web_interface)/launch/web_interface.launch"/>
+</launch>

@@ -1,0 +1,5 @@
+# LIST YOUR APT PACKAGES HERE
+# opencv-python's wheel links libGL/libglib even for headless use, so these
+# must be present for `import cv2` to succeed inside the container.
+libgl1
+libglib2.0-0

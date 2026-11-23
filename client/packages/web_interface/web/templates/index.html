@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DuckAD Cockpit</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ v }}">
+</head>
+<body>
+  <div id="link-banner"></div>
+
+  <header class="statusrail">
+    <div class="brand">
+      <span class="mark">DuckAD</span>
+      <span class="veh">{{ vehicle }}</span>
+    </div>
+
+    <div class="cells">
+      <div class="cell">
+        <span class="k">Fed command</span>
+        <span class="v"><span class="chip c2" id="cell-fed">-</span></span>
+      </div>
+      <div class="cell">
+        <span class="k">Model action</span>
+        <span class="v"><span class="chip c2" id="cell-action">-</span></span>
+      </div>
+      <div class="cell">
+        <span class="k">Model speed</span>
+        <span class="v"><span class="n" id="cell-speed">-</span><span class="u">m/s</span></span>
+      </div>
+      <div class="cell">
+        <span class="k">Commanded</span>
+        <span class="v"><span class="n" id="cell-cmdspeed">-</span><span class="u">m/s</span></span>
+      </div>
+      <div class="cell cell-live">
+        <span class="k">Inference</span>
+        <span class="v"><span class="n" id="cell-inference">-</span><span class="u" id="cell-inference-unit">ms</span></span>
+        <span class="budget"><i id="cell-budget" style="width:0%"></i></span>
+      </div>
+      <div class="cell cell-live">
+        <span class="k">Host RAM</span>
+        <span class="v"><span class="n" id="cell-ram">-</span><span class="u" id="cell-ram-unit"></span></span>
+        <span class="budget"><i id="cell-ram-bar" style="width:0%"></i></span>
+      </div>
+    </div>
+
+    <span class="link-pill" id="link-pill">
+      <span class="dot"></span><span id="link-text">connecting</span>
+    </span>
+  </header>
+
+  <div class="shell">
+    <main>
+      <div class="views">
+        <section class="card">
+          <div class="card-head">
+            <h2>Camera</h2>
+            <span class="hint">path projected through the extrinsic homography</span>
+          </div>
+          <div class="viewport">
+            <img id="camera" alt="waiting for camera feed">
+            <canvas id="camera-overlay"></canvas>
+          </div>
+          <div class="layers">
+            <label class="layer l-spatial"><input type="checkbox" id="ov-spatial" checked><span class="sw"></span>Spatial path</label>
+            <label class="layer l-temporal"><input type="checkbox" id="ov-temporal" checked><span class="sw"></span>Temporal</label>
+            <label class="layer l-goal"><input type="checkbox" id="ov-goal" checked><span class="sw"></span>Goal point</label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Predicted trajectory</h2>
+            <span class="hint">robot frame</span>
+          </div>
+          <div class="card-body">
+            <canvas class="plot fill" id="trajectory"></canvas>
+            <div class="legend">
+              <span><i style="background:var(--spatial)"></i>Spatial (path)</span>
+              <span><i style="background:var(--temporal)"></i>Temporal (speed)</span>
+              <span><i style="background:var(--goal)"></i>Goal point</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="heads">
+        <section class="card">
+          <div class="card-head">
+            <h2>Command head</h2>
+            <span class="hint">4-way softmax</span>
+          </div>
+          <div class="card-body"><canvas class="plot head" id="cmd-head"></canvas></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Speed head</h2>
+            <span class="hint">m/s per future window</span>
+          </div>
+          <div class="card-body"><canvas class="plot head" id="speed-head"></canvas></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Speed tracking</h2>
+            <span class="hint">m/s &middot; model vs. commanded</span>
+          </div>
+          <div class="card-body"><canvas class="plot head" id="speed-trace"></canvas></div>
+        </section>
+      </div>
+    </main>
+
+    <aside class="rail">
+      <section class="card runcard">
+        <div class="segmented">
+          <button type="button" id="btn-start" aria-pressed="false">Start</button>
+          <button type="button" class="stop" id="btn-stop" aria-pressed="true">Stop</button>
+        </div>
+        <div class="runstate">
+          <span class="lbl">Controller</span>
+          <span class="val" id="run-state" data-on="false">stopped</span>
+        </div>
+        <div class="keys">
+          <button type="button" class="key k1" data-key="a" data-cmd="1"><kbd>A</kbd><span class="cmd">left</span></button>
+          <button type="button" class="key k2" data-key="w" data-cmd="2"><kbd>W</kbd><span class="cmd">straight</span></button>
+          <button type="button" class="key k3" data-key="d" data-cmd="3"><kbd>D</kbd><span class="cmd">right</span></button>
+          <button type="button" class="key k0" data-key="s" data-cmd="0"><kbd>S</kbd><span class="cmd">default</span></button>
+        </div>
+      </section>
+
+      <section class="card group">
+        <div class="card-head"><h2>Speed</h2></div>
+        <div class="card-body">
+          <div class="row toggle">
+            <span class="name">Use model speed</span>
+            <label class="switch"><input type="checkbox" id="use-speed-controller" checked><span class="knob"></span></label>
+          </div>
+          <div class="row">
+            <span class="name">Speed cap</span>
+            <input type="range" id="speed-cap" min="0" max="0.8" step="0.01" value="0.22">
+            <span class="out"><span id="out-speed-cap">0.30</span><span class="u"> m/s</span></span>
+          </div>
+          <div class="row">
+            <span class="name">Steer floor</span>
+            <input type="range" id="steer-floor" min="0" max="0.3" step="0.01" value="0">
+            <span class="out"><span id="out-steer-floor">0.00</span><span class="u"> m/s</span></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card group">
+        <div class="card-head"><h2>Lateral PID</h2></div>
+        <div class="card-body">
+          <div class="row triple">
+            <span class="name">Gains</span>
+            <div class="triple-fields">
+              <label><span class="sub">kp</span><input type="number" id="pid-kp" value="0.55" step="0.05"></label>
+              <label><span class="sub">ki</span><input type="number" id="pid-ki" value="0" step="0.01"></label>
+              <label><span class="sub">kd</span><input type="number" id="pid-kd" value="0.1" step="0.05"></label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card group">
+        <div class="card-head"><h2>Goal point</h2></div>
+        <div class="card-body">
+          <div class="row">
+            <span class="name">Skip waypoints</span>
+            <input type="range" id="skip-waypoints" min="0" max="8" step="1" value="1">
+            <span class="out" id="out-skip-waypoints">1</span>
+          </div>
+          <div class="row">
+            <span class="name">Max look-at</span>
+            <input type="range" id="max-lookat" min="1" max="9" step="1" value="6">
+            <span class="out" id="out-max-lookat">7</span>
+          </div>
+          <div class="row">
+            <span class="name">Smoothing &beta;</span>
+            <input type="range" id="goal-beta" min="0.05" max="1" step="0.05" value="0.95">
+            <span class="out" id="out-goal-beta">0.60</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card group">
+        <div class="card-head"><h2>Model</h2></div>
+        <div class="card-body">
+          <div class="row">
+            <span class="name">Weights</span>
+            <select class="select" id="model-select" aria-label="ONNX weights file"></select>
+            <span class="out" id="out-model-size">&mdash;</span>
+          </div>
+          <div class="swapnote" id="swap-note">
+            <span class="spinner"></span>
+            <span id="swap-text">Inference paused</span>
+          </div>
+          <div class="row">
+            <span class="name">Inference rate</span>
+            <input type="range" id="inference-hz" min="0.5" max="10" step="0.5" value="7">
+            <span class="out"><span id="out-inference-hz">3.0</span><span class="u"> Hz</span></span>
+          </div>
+          <div class="row">
+            <span class="name">Command &beta;</span>
+            <input type="range" id="command-beta" min="0.05" max="1" step="0.05" value="0.6">
+            <span class="out" id="out-command-beta">0.60</span>
+          </div>
+          <div class="row">
+            <span class="name">Speed &beta;</span>
+            <input type="range" id="speed-beta" min="0.05" max="1" step="0.05" value="0.6">
+            <span class="out" id="out-speed-beta">0.60</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card group">
+        <div class="card-head"><h2>Source</h2></div>
+        <div class="card-body">
+          <a class="extlink" href="https://github.com/Raining-Cloud/duckad/tree/main/client"
+             target="_blank" rel="noopener noreferrer">
+            <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-2.98-.88-2.98-2.9 0-.83.3-1.51.79-2.04-.08-.2-.35-1 .08-2.08 0 0 .66-.21 2.2.79a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.01 2.2-.79 2.2-.79.43 1.08.16 1.88.08 2.08.49.53.79 1.2.79 2.04 0 2.03-1.21 2.7-2.99 2.9.31.27.58.79.58 1.6 0 1.15-.01 2.07-.01 2.35 0 .21.15.46.55.38A7.995 7.995 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+            <span class="repo">Raining-Cloud/duckad</span>
+            <svg class="arrow" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+              <path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M4 2.5h5.5V8M9.5 2.5 2.5 9.5"/>
+            </svg>
+          </a>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <script src="/static/script.js?v={{ v }}"></script>
+</body>
+</html>

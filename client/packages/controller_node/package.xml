@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>controller_node</name>
+  <version>0.0.1</version>
+  <description>Trajectory-tracking controller (ported from CARLA eval) that consumes model_node predictions and drives the robot.</description>
+  <maintainer email="simi2657@gmail.com">duckie</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>rospy</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>duckietown_msgs</build_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <build_export_depend>duckietown_msgs</build_export_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>duckietown_msgs</exec_depend>
+</package>

@@ -1,0 +1,22 @@
+model:
+  head: mlp
+
+data:
+  dir: data/train
+  test_dir: null
+  batch_size: 64
+  num_workers: 8
+  augment: true
+  background_aug: true
+
+optim:
+  epochs: 15
+  lr_backbone: 1.0e-5
+  lr_head: 1.0e-4
+  command_perturb_prob: 0.5
+  train_bev: true
+
+runtime:
+  seed: 0
+  device: "cuda"
+  runname: "mlp"

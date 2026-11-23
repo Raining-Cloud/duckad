@@ -1,0 +1,11 @@
+# LIST YOUR PYTHON3 PACKAGES HERE
+# NOTE: onnxruntime(-gpu) is installed via the Dockerfile (NVIDIA wheel), not here.
+numpy
+opencv-python
+# web_interface (FastAPI dashboard)
+fastapi
+uvicorn
+websockets
+jinja2
+pydantic
+python-multipart

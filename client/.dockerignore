@@ -1,0 +1,19 @@
+# Ignore everything
+**
+
+# Allow files and directories
+!assets
+!packages
+!dependencies-apt.txt
+!dependencies-py3.txt
+!launchers
+
+# YOUR FILES LISTED BELOW THIS LINE (IMPORTANT: PREPEND !)
+# ----------------------------------------------------------------------------
+# NOT prefixed with ! -- these are re-excluded from the context that "!packages" let in.
+#
+# The weights do not belong in the image. They live on the robot's /data partition, put there
+# once by scripts/sync_models.py; shipping them through the build context meant 77 MB over the
+# robot's WiFi on every cold build, and a dropped association takes BuildKit's context stream
+# with it. This is what keeps the context at ~300 KB.
+packages/model_node/assets/*.onnx

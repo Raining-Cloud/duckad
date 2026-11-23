@@ -1,0 +1,665 @@
+/* ===========================================================================
+   DuckAD Cockpit
+   Single-theme dark on purpose: this is an instrument panel read in a lab and
+   over a robot's shoulder.
+
+   Colour rule that drives the whole sheet: SATURATED COLOUR IS DATA ONLY.
+   Seven hues are already load-bearing (3 trajectory layers + 4 command
+   classes), so the chrome is achromatic. The only coloured chrome is
+   semantic state (ok / warn / critical), and it is kept away from the charts.
+   =========================================================================== */
+:root {
+  color-scheme: dark;
+
+  /* chrome — neutrals with a slight cool bias so they read as chosen */
+  --ink:        #0E1013;
+  --ink-well:   #090A0D;   /* canvas grounds, inset wells */
+  --slab:       #171A20;   /* cards */
+  --slab-hi:    #1E222A;   /* raised control faces */
+  --rule:       #282D37;
+  --rule-soft:  #1F242C;
+  --text:       #E8EBF0;
+  --text-mid:   #A8B0BC;
+  --text-dim:   #79828F;
+
+  /* semantic state — the ONLY coloured chrome */
+  --ok:         #5FD97A;
+  --warn:       #E2B33C;
+  --critical:   #F0555B;
+
+  /* data hues — inherited from the live dashboard, deliberately unchanged.
+     These are drawn in canvas, on the camera overlay and in legends; the
+     driver's mental model is built on them. */
+  --spatial:      #FF9F43;
+  --temporal:     #22C1E8;
+  --goal:         #FFE14F;
+  --cmd-default:  #8A90A0;
+  --cmd-left:     #FF6B6B;
+  --cmd-straight: #4FD1C5;
+  --cmd-right:    #A78BFA;
+
+  /* Type scale, lifted ~2px at the small end: the 9-10px labels were the ones
+     that were hard to read. Sizes live here so the scale moves as one. */
+  --fs-micro: 0.6875rem;   /* 11px - cell keys, sub-labels */
+  --fs-tiny:  0.75rem;     /* 12px - eyebrows, hints, legends, units */
+  --fs-small: 0.8125rem;   /* 13px - control names, pills, layer chips */
+  --fs-base:  0.875rem;    /* 14px - chips, inputs, readouts */
+  --fs-lead:  0.9375rem;   /* 15px - segmented buttons, keycaps */
+  --fs-brand: 1rem;        /* 16px */
+  --fs-stat:  1.1875rem;   /* 19px - status-rail numerals */
+
+  --rail-w: 23.5rem;
+  --gap: 0.625rem;
+
+  /* System fonts only — no webfont request. The robot serves this page from
+     its own network, where a remote font silently falls back and the whole
+     type scale shifts under you. Roboto leads for Android/ChromeOS, Ubuntu
+     picks it up on the Linux desktop, then the usual platform faces. */
+  --font-ui:   Roboto, Ubuntu, system-ui, -apple-system, "Segoe UI",
+               "Helvetica Neue", "Liberation Sans", Arial, sans-serif;
+  /* Noto Sans Mono is Roboto Mono's closest widely-installed relative and
+     holds up at the 8-9px canvas label sizes; DejaVu is the sturdy backstop. */
+  --font-data: "Roboto Mono", "Noto Sans Mono", "DejaVu Sans Mono",
+               "Ubuntu Mono", "Liberation Mono", ui-monospace, Menlo,
+               Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* --- shared primitives -----------------------------------------------------
+   One eyebrow style, one card style, one numeral style. Defined once so no
+   later rule has to fight them. */
+.eyebrow {
+  font-size: var(--fs-tiny);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.num {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+}
+
+.card {
+  background: var(--slab);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.card > .card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.card-head h2 {
+  margin: 0;
+  font-size: var(--fs-tiny);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+  white-space: nowrap;
+}
+
+.heads .card-head .hint {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-head .hint {
+  font-size: var(--fs-tiny);
+  color: var(--text-dim);
+  text-align: right;
+  text-wrap: balance;
+}
+
+.card > .card-body { padding: 0.5rem 0.625rem 0.625rem; min-width: 0; }
+
+/* ===========================================================================
+   STATUS RAIL — fixed cells, tabular numerals. A digit changing width can
+   never shove its neighbour, which is the whole point.
+   =========================================================================== */
+.statusrail {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand { display: flex; align-items: baseline; gap: 0.5rem; }
+.brand .mark {
+  font-size: var(--fs-brand);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.brand .veh {
+  font-family: var(--font-data);
+  font-size: var(--fs-small);
+  color: var(--text-dim);
+}
+
+.cells {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 1px;
+  background: var(--rule-soft);
+  border: 1px solid var(--rule-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cell {
+  background: var(--slab);
+  padding: 0.3125rem 0.5625rem 0.375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.cell .k { font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.08em;
+           text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+.cell .v { display: flex; align-items: baseline; gap: 0.25rem; min-height: 1.25rem; }
+
+.cell .v .n {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-stat);
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--text);
+}
+.cell .v .u { font-size: var(--fs-tiny); color: var(--text-dim); }
+
+.cell .v .n.is-warn { color: var(--warn); }
+.cell .v .n.is-critical { color: var(--critical); }
+
+/* command class shown as a chip: state encoded in form AND colour, so it
+   reads at a glance rather than being parsed as a word. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.125rem 0.4375rem 0.1875rem;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  line-height: 1.25;
+}
+.chip::before {
+  content: "";
+  width: 0.375rem; height: 0.375rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.chip.c0 { color: var(--cmd-default); }
+.chip.c1 { color: var(--cmd-left); }
+.chip.c2 { color: var(--cmd-straight); }
+.chip.c3 { color: var(--cmd-right); }
+
+/* inference budget: a hairline load bar under the ms figure. Full bar means
+   inference is eating the whole period at the requested rate. */
+.budget {
+  height: 2px;
+  background: var(--rule);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-top: 0.1875rem;
+}
+.budget > i { display: block; height: 100%; background: var(--text-mid); transition: width 0.2s linear; }
+.budget > i.is-warn { background: var(--warn); }
+.budget > i.is-critical { background: var(--critical); }
+
+/* link pill */
+.link-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ok);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.25rem 0.625rem 0.3125rem;
+  white-space: nowrap;
+}
+.link-pill .dot { width: 0.4375rem; height: 0.4375rem; border-radius: 50%; background: currentColor; }
+.link-pill[data-state="down"] { color: var(--critical); }
+
+/* ===========================================================================
+   LAYOUT — main + a fixed tuning rail. The rail is a fixed track, so no
+   control group can ever reflow to a new position.
+   =========================================================================== */
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail-w);
+  gap: var(--gap);
+  padding: var(--gap) 0.875rem 1.25rem;
+  align-items: start;
+}
+
+main { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+
+/* The two spatial views, side by side. You read them together, so they sit on
+   one line AND end on the same pixel: the row owns the height, and each card's
+   media box flexes into whatever is left after its own head and footer. That
+   is what stops one card from growing a dead strip under its content. */
+.views {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
+  gap: var(--gap);
+  height: clamp(20rem, 44vh, 32rem);
+}
+.views > .card { overflow: hidden; }
+.views .card-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; }
+
+/* the three model heads */
+.heads {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gap);
+}
+
+@media (max-width: 1180px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .heads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .views, .heads { grid-template-columns: minmax(0, 1fr); }
+  .cells { grid-auto-flow: row; grid-auto-columns: auto; }
+  .statusrail { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --- camera --------------------------------------------------------------- */
+.viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--ink-well);
+  overflow: hidden;
+}
+/* contain, not cover: a 4:3 frame letterboxes inside whatever box the row
+   gives it. `cover` (what the live page uses) silently crops the top and
+   bottom of the image, which puts the projected path on the wrong pixels. */
+.viewport > canvas, .viewport > img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+}
+#camera-overlay { pointer-events: none; }
+
+/* layer toggles read as switches, not as a legend you can't click */
+.layers { display: flex; flex-wrap: wrap; gap: 0.3125rem; padding: 0.5rem 0.625rem; }
+.layer {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  font-size: var(--fs-small); font-weight: 500;
+  color: var(--text-dim);
+  background: var(--slab-hi);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 0.1875rem 0.4375rem;
+  cursor: pointer;
+  user-select: none;
+}
+.layer:hover { border-color: var(--text-dim); }
+.layer input { position: absolute; opacity: 0; width: 0; height: 0; }
+.layer .sw { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: currentColor; opacity: 0.28; }
+.layer:has(input:checked) { color: var(--text); }
+.layer:has(input:checked) .sw { opacity: 1; }
+.layer:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 1px; }
+.layer.l-spatial  { --c: var(--spatial); }
+.layer.l-temporal { --c: var(--temporal); }
+.layer.l-goal     { --c: var(--goal); }
+.layer .sw { background: var(--c); }
+
+/* --- bird's-eye ----------------------------------------------------------- */
+.plot {
+  display: block;
+  width: 100%;
+  background: var(--ink-well);
+}
+.plot.fill { flex: 1; min-height: 0; height: auto; }
+.plot.head { aspect-ratio: 16 / 11; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 0.75rem; padding: 0.4375rem 0 0; flex: none; }
+.legend span { display: inline-flex; align-items: center; gap: 0.375rem;
+               font-size: var(--fs-tiny); color: var(--text-dim); white-space: nowrap; }
+.legend i { width: 0.5rem; height: 0.5rem; border-radius: 50%; }
+
+/* ===========================================================================
+   TUNING RAIL — every row is the same three-column grid, so labels, controls
+   and readouts line up down the entire rail. Readouts are fixed-width and
+   tabular: dragging a slider cannot change the row's geometry.
+   =========================================================================== */
+.rail {
+  position: sticky;
+  top: 3.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+
+@media (max-width: 1180px) {
+  .rail { position: static; max-height: none; overflow: visible; }
+}
+
+/* run control: one segmented switch, not two buttons adrift among sliders */
+.runcard { padding: 0.625rem; gap: 0.5rem; }
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.segmented button {
+  appearance: none;
+  border: 0;
+  background: var(--slab-hi);
+  color: var(--text-mid);
+  font-family: var(--font-ui);
+  font-size: var(--fs-lead);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.5625rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.12s linear, color 0.12s linear;
+}
+.segmented button:hover { color: var(--text); }
+.segmented button[aria-pressed="true"] { background: var(--ok); color: var(--ink); }
+.segmented button.stop[aria-pressed="true"] { background: var(--critical); color: var(--ink); }
+
+.runstate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: var(--fs-small);
+}
+.runstate .lbl { color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+.runstate .val { font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--critical); }
+.runstate .val[data-on="true"] { color: var(--ok); }
+
+/* drive keys — the WASD hint becomes actual buttons you can hit with a mouse */
+.keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3125rem; }
+.key {
+  appearance: none;
+  background: var(--slab-hi);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--text-mid);
+  cursor: pointer;
+  padding: 0.375rem 0.25rem 0.3125rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.0625rem;
+  transition: border-color 0.12s linear, color 0.12s linear;
+}
+.key kbd {
+  font-family: var(--font-data);
+  font-size: var(--fs-lead);
+  font-weight: 600;
+  color: var(--text);
+}
+.key .cmd { font-size: var(--fs-micro); letter-spacing: 0.05em; text-transform: uppercase; }
+.key:hover { border-color: var(--text-dim); color: var(--text); }
+.key.k0 { --kc: var(--cmd-default); }
+.key.k1 { --kc: var(--cmd-left); }
+.key.k2 { --kc: var(--cmd-straight); }
+.key.k3 { --kc: var(--cmd-right); }
+.key[data-live="true"] { color: var(--kc); border-color: var(--kc); }
+
+/* control groups */
+.group > .card-body { display: flex; flex-direction: column; gap: 0.4375rem; }
+
+/* weights picker. Chevron is an inline data URI — no external asset. */
+.select {
+  appearance: none;
+  width: 100%;
+  background: var(--ink-well) no-repeat right 0.375rem center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%2379828F' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-size: 0.625rem 0.375rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--font-data);
+  font-size: var(--fs-base);
+  padding: 0.25rem 1.25rem 0.25rem 0.375rem;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+.select:hover { border-color: var(--text-dim); }
+.select:disabled { color: var(--text-dim); cursor: progress; }
+.select option { background: var(--slab); color: var(--text); }
+
+/* Swapping weights tears down the ORT session and warms a new one up: seconds
+   of no predictions. Say so, rather than letting the charts look merely quiet. */
+.swapnote {
+  display: none;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: var(--fs-small);
+  color: var(--warn);
+  background: var(--slab-hi);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--warn);
+  border-radius: 2px;
+  padding: 0.375rem 0.5rem;
+}
+.swapnote.visible { display: flex; }
+.swapnote .spinner {
+  width: 0.625rem; height: 0.625rem; flex: none;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* While the session reloads, inference is paused but the LINK IS FINE — two
+   different states that must not look like one. Grey only the readings that
+   are genuinely stale; cells marked .cell-live keep reporting, because host
+   RAM during a session load is the one number you actually want to watch. */
+body.swapping .cell:not(.cell-live),
+body.swapping .heads,
+body.swapping #trajectory,
+body.swapping .viewport { opacity: 0.4; filter: grayscale(0.7); }
+
+/* the paused state gets said, not merely implied by dimming */
+.cell .v .n.is-paused {
+  color: var(--warn);
+  font-size: var(--fs-lead);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* source board — looks interactive, stays achromatic like the rest of the chrome */
+.extlink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.5rem;
+  background: var(--slab-hi);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--text-mid);
+  text-decoration: none;
+  transition: border-color 0.12s linear, color 0.12s linear;
+}
+.extlink:hover { border-color: var(--text-dim); color: var(--text); }
+.extlink .glyph { width: 1rem; height: 1rem; flex: none; }
+.extlink .repo {
+  font-family: var(--font-data);
+  font-size: var(--fs-base);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.extlink .arrow { width: 0.75rem; height: 0.75rem; flex: none; opacity: 0.55; }
+.extlink:hover .arrow { opacity: 1; }
+
+.row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) 3.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+}
+.row > .name {
+  font-size: var(--fs-small);
+  color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row > .out {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-base);
+  text-align: right;
+  color: var(--text);
+  white-space: nowrap;
+}
+.row > .out .u { color: var(--text-dim); font-size: var(--fs-tiny); }
+
+/* three number fields sharing one row (kp / ki / kd) */
+.row.triple { grid-template-columns: 7.5rem minmax(0, 1fr); }
+.triple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.3125rem; }
+.triple-fields label { display: flex; flex-direction: column; gap: 0.125rem; }
+.triple-fields .sub { font-size: var(--fs-micro); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+
+input[type="number"] {
+  width: 100%;
+  background: var(--ink-well);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-base);
+  padding: 0.25rem 0.375rem;
+}
+input[type="number"]:focus-visible { border-color: var(--text-dim); }
+
+input[type="range"] {
+  appearance: none;
+  width: 100%;
+  height: 1rem;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 2px; background: var(--rule);
+}
+input[type="range"]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--rule); }
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.75rem; height: 0.75rem;
+  margin-top: -0.28125rem;
+  border-radius: 50%;
+  background: var(--text);
+  border: 0;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 0.75rem; height: 0.75rem; border: 0; border-radius: 50%; background: var(--text);
+}
+input[type="range"]:hover::-webkit-slider-thumb { background: #FFFFFF; }
+
+/* toggle rows */
+.row.toggle { grid-template-columns: minmax(0, 1fr) auto; }
+.switch {
+  position: relative;
+  width: 2.125rem; height: 1.125rem;
+  flex: none;
+  background: var(--rule);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.14s linear;
+}
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .knob {
+  position: absolute; top: 0.1875rem; left: 0.1875rem;
+  width: 0.75rem; height: 0.75rem;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.14s ease, background 0.14s linear;
+}
+.switch:has(input:checked) { background: var(--slab-hi); box-shadow: inset 0 0 0 1px var(--ok); }
+.switch:has(input:checked) .knob { transform: translateX(1rem); background: var(--ok); }
+.switch:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* Dead-link banner. Deliberately loud: a frozen dashboard must never be
+   mistakable for a live one. */
+#link-banner {
+  display: none;
+  /* In flow, not fixed: a fixed banner covered the status rail exactly when you
+     most want to read the last values it holds. */
+  padding: 0.85rem 1rem;
+  background: var(--critical);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-align: center;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
+}
+#link-banner.visible { display: block; }
+
+/* Same reasoning as body.swapping: grey what is stale, leave the rest. */
+body.link-down .cells,
+body.link-down .heads,
+body.link-down #trajectory,
+body.link-down .viewport { opacity: 0.4; filter: grayscale(0.7); }

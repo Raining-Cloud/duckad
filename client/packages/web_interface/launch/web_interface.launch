@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="web_interface" type="web_interface_node.py" name="web_interface" output="screen" />
+</launch>

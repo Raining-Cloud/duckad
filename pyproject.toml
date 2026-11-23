@@ -1,0 +1,41 @@
+[project]
+name = "duckad"
+version = "0.1.0"
+description = "E2E framework for duckietown"
+readme = "README.md"
+requires-python = ">=3.10,!=3.11.*,<3.13"
+dependencies = [
+    "matplotlib>=3.10.9",
+    "networkx==3.4.2",
+    "numpy==1.26.4",
+    "opencv-python>=4.11.0.86",
+    "pygame==2.6.1",
+    "pyyaml>=6.0.2",
+    "tqdm>=4.67.1",
+    "scikit-learn>=1.7.2",
+    "scipy>=1.15.3",
+    "seaborn>=0.13.2",
+    "shapely==2.1.2",
+    "torch>=2.12.1",
+    "torchvision>=0.27.1",
+    "albumentations>=2.0.8",
+    "onnx>=1.22.0",
+    "onnxruntime>=1.23.2",
+    "carla-duckietown",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
+carla-duckietown = [
+    { url = "https://github.com/duckietown/carla/releases/download/1.0/carla_duckietown-1.0-cp310-cp310-linux_x86_64.whl", marker = "python_version < '3.11'" },
+    { url = "https://github.com/duckietown/carla/releases/download/1.0/carla_duckietown-1.0-cp312-cp312-linux_x86_64.whl", marker = "python_version >= '3.11'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64' and python_version != '3.11'"]
